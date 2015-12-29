@@ -1,159 +1,77 @@
 #!/bin/env node
-//  OpenShift sample Node application
+// Setup basic express server
 var express = require('express');
-var fs      = require('fs');
+var app = express();
+var server = require('http').createServer(app);
+var io = require('../..')(server);
+var port = process.env.PORT || 3000;
 
+server.listen(port, function () {
+  console.log('Server listening at port %d', port);
+});
 
-/**
- *  Define the sample application.
- */
-var SampleApp = function() {
+// Routing
+app.use(express.static(__dirname + '/public'));
 
-    //  Scope.
-    var self = this;
+// Chatroom
 
+var numUsers = 0;
 
-    /*  ================================================================  */
-    /*  Helper functions.                                                 */
-    /*  ================================================================  */
+io.on('connection', function (socket) {
+  var addedUser = false;
 
-    /**
-     *  Set up server IP address and port # using env variables/defaults.
-     */
-    self.setupVariables = function() {
-        //  Set the environment variables we need.
-        self.ipaddress = process.env.OPENSHIFT_NODEJS_IP;
-        self.port      = process.env.OPENSHIFT_NODEJS_PORT || 8080;
+  // when the client emits 'new message', this listens and executes
+  socket.on('new message', function (data) {
+    // we tell the client to execute 'new message'
+    socket.broadcast.emit('new message', {
+      username: socket.username,
+      message: data
+    });
+  });
 
-        if (typeof self.ipaddress === "undefined") {
-            //  Log errors on OpenShift but continue w/ 127.0.0.1 - this
-            //  allows us to run/test the app locally.
-            console.warn('No OPENSHIFT_NODEJS_IP var, using 127.0.0.1');
-            self.ipaddress = "127.0.0.1";
-        };
-    };
+  // when the client emits 'add user', this listens and executes
+  socket.on('add user', function (username) {
+    if (addedUser) return;
 
+    // we store the username in the socket session for this client
+    socket.username = username;
+    ++numUsers;
+    addedUser = true;
+    socket.emit('login', {
+      numUsers: numUsers
+    });
+    // echo globally (all clients) that a person has connected
+    socket.broadcast.emit('user joined', {
+      username: socket.username,
+      numUsers: numUsers
+    });
+  });
 
-    /**
-     *  Populate the cache.
-     */
-    self.populateCache = function() {
-        if (typeof self.zcache === "undefined") {
-            self.zcache = { 'index.html': '' };
-        }
+  // when the client emits 'typing', we broadcast it to others
+  socket.on('typing', function () {
+    socket.broadcast.emit('typing', {
+      username: socket.username
+    });
+  });
 
-        //  Local cache for static content.
-        self.zcache['index.html'] = fs.readFileSync('./index.html');
-    };
+  // when the client emits 'stop typing', we broadcast it to others
+  socket.on('stop typing', function () {
+    socket.broadcast.emit('stop typing', {
+      username: socket.username
+    });
+  });
 
+  // when the user disconnects.. perform this
+  socket.on('disconnect', function () {
+    if (addedUser) {
+      --numUsers;
 
-    /**
-     *  Retrieve entry (content) from cache.
-     *  @param {string} key  Key identifying content to retrieve from cache.
-     */
-    self.cache_get = function(key) { return self.zcache[key]; };
-
-
-    /**
-     *  terminator === the termination handler
-     *  Terminate server on receipt of the specified signal.
-     *  @param {string} sig  Signal to terminate on.
-     */
-    self.terminator = function(sig){
-        if (typeof sig === "string") {
-           console.log('%s: Received %s - terminating sample app ...',
-                       Date(Date.now()), sig);
-           process.exit(1);
-        }
-        console.log('%s: Node server stopped.', Date(Date.now()) );
-    };
-
-
-    /**
-     *  Setup termination handlers (for exit and a list of signals).
-     */
-    self.setupTerminationHandlers = function(){
-        //  Process on exit and signals.
-        process.on('exit', function() { self.terminator(); });
-
-        // Removed 'SIGPIPE' from the list - bugz 852598.
-        ['SIGHUP', 'SIGINT', 'SIGQUIT', 'SIGILL', 'SIGTRAP', 'SIGABRT',
-         'SIGBUS', 'SIGFPE', 'SIGUSR1', 'SIGSEGV', 'SIGUSR2', 'SIGTERM'
-        ].forEach(function(element, index, array) {
-            process.on(element, function() { self.terminator(element); });
-        });
-    };
-
-
-    /*  ================================================================  */
-    /*  App server functions (main app logic here).                       */
-    /*  ================================================================  */
-
-    /**
-     *  Create the routing table entries + handlers for the application.
-     */
-    self.createRoutes = function() {
-        self.routes = { };
-
-        self.routes['/asciimo'] = function(req, res) {
-            var link = "http://i.imgur.com/kmbjB.png";
-            res.send("<html><body><img src='" + link + "'></body></html>");
-        };
-
-        self.routes['/'] = function(req, res) {
-            res.setHeader('Content-Type', 'text/html');
-            res.send(self.cache_get('index.html') );
-        };
-    };
-
-
-    /**
-     *  Initialize the server (express) and create the routes and register
-     *  the handlers.
-     */
-    self.initializeServer = function() {
-        self.createRoutes();
-        self.app = express.createServer();
-
-        //  Add handlers for the app (from the routes).
-        for (var r in self.routes) {
-            self.app.get(r, self.routes[r]);
-        }
-    };
-
-
-    /**
-     *  Initializes the sample application.
-     */
-    self.initialize = function() {
-        self.setupVariables();
-        self.populateCache();
-        self.setupTerminationHandlers();
-
-        // Create the express server and routes.
-        self.initializeServer();
-    };
-
-
-    /**
-     *  Start the server (starts up the sample application).
-     */
-    self.start = function() {
-        //  Start the app on the specific interface (and port).
-        self.app.listen(self.port, self.ipaddress, function() {
-            console.log('%s: Node server started on %s:%d ...',
-                        Date(Date.now() ), self.ipaddress, self.port);
-        });
-    };
-
-};   /*  Sample Application.  */
-
-
-
-/**
- *  main():  Main code.
- */
-var zapp = new SampleApp();
-zapp.initialize();
-zapp.start();
+      // echo globally that this client has left
+      socket.broadcast.emit('user left', {
+        username: socket.username,
+        numUsers: numUsers
+      });
+    }
+  });
+});
 
