@@ -4,8 +4,12 @@
 
 var ipaddress = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
 var port = process.env.OPENSHIFT_NODEJS_PORT || 8880;
-
-var io = require('socket.io')(port);
+var io;
+try {
+	io = require('socket.io')(port);
+	} catch (err) {
+	console.log(err);
+	}
 // Chatroom
 
 var numUsers = 0;
