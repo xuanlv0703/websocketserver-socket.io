@@ -8,19 +8,58 @@ var io = require('socket.io')(server);
 
 var ipaddress = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
 var port = process.env.OPENSHIFT_NODEJS_PORT || 8080;
+var serverStat;
 server.listen( port, ipaddress, function() {
-    console.log((new Date()) + ' Server is listening on port ' + port);
+    serverStat = new Date() + ' Server is listening on port ' + port;
+    console.log(serverStat);
 });
 
 
 // Routing
 app.use(express.static(__dirname + '/public'));
 
-// Chatroom
+// respond with "hello world" when a GET request is made to the homepage
+app.get('/server', function(req, res) {
+  	res.send(serverStat);
+});
+
+app.get('/server/stats', function(req, res) {
+  	res.send("Apps:" + JSON.stringify(apps));
+});
+
+// 
+var apps = new Array();
 
 var numUsers = 0;
+var numApps = 0;
 
 io.on('connection', function (socket) {
+	socket.appName = Math.random().toString(36);
+	socket.join(socket.appName);
+	
+	// when an app registers
+	socket.on('registerApp', function (appName) {
+		socket.leave(socket.appName);
+    	socket.appName = appName;
+    	socket.join(socket.appName);
+    
+    	for ( var i = 0; i < apps.length; i++ ) {
+    		if ( apps[i].name === appName ) {
+    			return;
+    		}
+    	}
+
+   		apps.push({name: appName});
+
+  	});
+
+ // when the client emits 'new message', this listens and executes
+  socket.on('event', function (data) {
+    // we tell the client to execute 'new message'
+    socket.to(socket.appName).broadcast.emit('event', data);
+  });
+
+
   var addedUser = false;
 
   // when the client emits 'new message', this listens and executes

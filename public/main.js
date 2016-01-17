@@ -23,7 +23,7 @@ $(function() {
   var lastTypingTime;
   var $currentInput = $usernameInput.focus();
 
-  var socket = io();
+  var socket = io("http://localhost:8080");//io("http://nodejs-jorgecardoso.rhcloud.com");
 
   function addParticipantsMessage (data) {
     var message = '';
@@ -46,6 +46,7 @@ $(function() {
       $loginPage.off('click');
       $currentInput = $inputMessage.focus();
 
+ //socket.emit('registerApp', "myUniqueAppID");
       // Tell the server your username
       socket.emit('add user', username);
     }
