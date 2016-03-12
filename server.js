@@ -106,6 +106,13 @@ io.on('connection', function (socket) {
         // tell everyone about this client
         socket.to(socket.appName).broadcast.emit('entered', client);
 
+        // tell this client about everyone
+        for ( var i = 0; i < apps[appName].length; i++ ) {
+    		if ( apps[appName][i].id !== client.id ) {
+    			socket.emit('entered', apps[appName][i]);
+    		}
+    	}
+
   	});
 
  // when the client emits 'new message', this listens and executes
