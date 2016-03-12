@@ -28,7 +28,7 @@ var server = require('http').createServer(app);
 var io = require('socket.io')(server);
 
 var ipaddress = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
-var port = process.env.OPENSHIFT_NODEJS_PORT || 8080;
+var port = process.env.OPENSHIFT_NODEJS_PORT || 8000;
 var serverStat;
 
 server.listen( port, ipaddress, function() {
@@ -54,43 +54,57 @@ app.get('/_server/stats', function(req, res) {
 });
 
 //
-var apps = new Array();
+var apps = {};
 
-var numUsers = 0;
-var numApps = 0;
 
 io.on('connection', function (socket) {
     console.log("New connection from: " + socket.id);
 
     // apps join automatically a random room to prevent them from sending
     // or receiving messages to / from other apps
-	socket.appName = Math.random().toString(36);
-	socket.join(socket.appName);
+	//socket.appName = Math.random().toString(36);
+	//socket.join(socket.appName);
 
 
 
 	// when a client connects
-	socket.on('enter', function (appName) {
-        console.log(socket.id + ": enter " + appName);
-        // when app registers it leaves the random room and enters a new one
-		socket.leave(socket.appName);
+	socket.on('enter', function (appName, clientDescription) {
+        console.log(socket.id + ": enter " + appName + " clientDescription " + clientDescription);
+
+        // if had alread entered, it cannot enter again without disconnecting first
+		if (socket.appName) {
+            console.log(socket.id + ": is already on " + socket.appName );
+            return;
+        }
     	socket.appName = appName;
     	socket.join(socket.appName);
 
+        // add app if not created yet
+        if (!apps[appName]) {
+            // app does not exist, so add it to our list of apps
+   	        //apps.push({name: appName});
+            apps[appName] = Array();
 
-        // check if app already exists
-    	for ( var i = 0; i < apps.length; i++ ) {
-    		if ( apps[i].name === appName ) {
-    			return;
+        }
+
+        var client = {"id" : socket.id, "clientDescription": clientDescription};
+
+        // check if client already exists
+        var exists = false;
+    	for ( var i = 0; i < apps[appName].length; i++ ) {
+    		if ( apps[appName][i].id === client.id ) {
+    			exists = true;
     		}
     	}
 
-        // app does not exist, so add it to our list of apps
-   		apps.push({name: appName});
+        // if not add to client list of this app
+        if (!exists) {
+            apps[appName].push(client);
+        }
 
 
         // tell everyone about this client
-        socket.to(socket.appName).broadcast.emit('entered', {'client': socket.id});
+        socket.to(socket.appName).broadcast.emit('entered', client);
 
   	});
 
@@ -101,65 +115,29 @@ io.on('connection', function (socket) {
     // we tell the client to execute 'new message'
     socket.to(socket.appName).broadcast.emit('event', data);
 
-    socket.broadcast.emit('event', data);
   });
 
-
-  var addedUser = false;
-
-  // when the client emits 'new message', this listens and executes
-  socket.on('new message', function (data) {
-    // we tell the client to execute 'new message'
-    socket.broadcast.emit('new message', {
-      username: socket.username,
-      message: data
-    });
-  });
-
-  // when the client emits 'add user', this listens and executes
-  socket.on('add user', function (username) {
-    if (addedUser) return;
-
-    // we store the username in the socket session for this client
-    socket.username = username;
-    ++numUsers;
-    addedUser = true;
-    socket.emit('login', {
-      numUsers: numUsers
-    });
-    // echo globally (all clients) that a person has connected
-    socket.broadcast.emit('user joined', {
-      username: socket.username,
-      numUsers: numUsers
-    });
-  });
-
-  // when the client emits 'typing', we broadcast it to others
-  socket.on('typing', function () {
-    socket.broadcast.emit('typing', {
-      username: socket.username
-    });
-  });
-
-  // when the client emits 'stop typing', we broadcast it to others
-  socket.on('stop typing', function () {
-    socket.broadcast.emit('stop typing', {
-      username: socket.username
-    });
-  });
 
   // when the user disconnects.. perform this
   socket.on('disconnect', function () {
+      console.log(socket.id + ": disconnected");
       //socket.to(socket.appName).broadcast.emit('disconnect');
 
-    if (addedUser) {
-      --numUsers;
 
-      // echo globally that this client has left
-      socket.broadcast.emit('user left', {
-        username: socket.username,
-        numUsers: numUsers
-      });
-    }
+      // get client
+      var client;
+      for ( var i = 0; i < apps[socket.appName].length; i++ ) {
+          if ( apps[socket.appName][i].id === socket.id ) {
+              client = apps[socket.appName][i];
+              apps[socket.appName].splice(i, 1);
+              break;
+          }
+      }
+
+
+      // we tell the client to execute 'new message'
+      socket.to(socket.appName).broadcast.emit('exited', client);
+
+
   });
 });
