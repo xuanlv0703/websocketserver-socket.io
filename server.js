@@ -97,7 +97,7 @@ io.on('connection', function (socket) {
  // when the client emits 'new message', this listens and executes
   socket.on('event', function (data) {
       console.log(socket.appName + " -> " + socket.id + ": event " + data);
-     
+
     // we tell the client to execute 'new message'
     socket.to(socket.appName).broadcast.emit('event', data);
 
