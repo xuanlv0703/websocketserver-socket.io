@@ -120,7 +120,7 @@ io.on('connection', function (socket) {
       console.log(socket.appName + " -> " + socket.id + ": event " + data);
 
     // we tell the client to execute 'new message'
-    socket.to(socket.appName).broadcast.emit('event', data);
+    socket.to(socket.appName).broadcast.emit('event', {"id":socket.id, "data": data});
 
   });
 
@@ -133,11 +133,13 @@ io.on('connection', function (socket) {
 
       // get client
       var client;
-      for ( var i = 0; i < apps[socket.appName].length; i++ ) {
-          if ( apps[socket.appName][i].id === socket.id ) {
-              client = apps[socket.appName][i];
-              apps[socket.appName].splice(i, 1);
-              break;
+      if ( apps[socket.appName]) {
+          for ( var i = 0; i < apps[socket.appName].length; i++ ) {
+              if ( apps[socket.appName][i].id === socket.id ) {
+                  client = apps[socket.appName][i];
+                  apps[socket.appName].splice(i, 1);
+                  break;
+              }
           }
       }
 
