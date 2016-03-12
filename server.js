@@ -43,17 +43,21 @@ app.use(express.static(__dirname + '/public'));
 
 // respond with "hello world" when a GET request is made to the homepage
 app.get('/', function(req, res) {
+    console.log("Redirecting to /_server...");
   	res.redirect("/_server");
 });
 
 
 // respond with "hello world" when a GET request is made to the homepage
 app.get('/_server', function(req, res) {
+    console.log(serverStat);
   	res.send(serverStat);
 });
 
 app.get('/_server/stats', function(req, res) {
-  	res.send("Apps:" + JSON.stringify(apps));
+    var stats = "Apps:" + JSON.stringify(apps);
+    console.log(stats);
+  	res.send(stats);
 });
 
 //
