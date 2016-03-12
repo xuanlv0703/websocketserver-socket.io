@@ -76,6 +76,7 @@ io.on('connection', function (socket) {
     	socket.appName = appName;
     	socket.join(socket.appName);
 
+        // check if app already exists
     	for ( var i = 0; i < apps.length; i++ ) {
     		if ( apps[i].name === appName ) {
     			return;
