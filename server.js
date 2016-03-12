@@ -42,13 +42,6 @@ app.use(express.static(__dirname + '/public'));
 
 
 // respond with "hello world" when a GET request is made to the homepage
-app.get('/', function(req, res) {
-    console.log("Redirecting to /_server...");
-  	res.redirect("/_server");
-});
-
-
-// respond with "hello world" when a GET request is made to the homepage
 app.get('/_server', function(req, res) {
     console.log(serverStat);
   	res.send(serverStat);
@@ -67,14 +60,23 @@ var numUsers = 0;
 var numApps = 0;
 
 io.on('connection', function (socket) {
+    console.log("New connection from: " + socket.id);
+
+    // apps join automatically a random room to prevent them from sending
+    // or receiving messages to / from other apps
 	socket.appName = Math.random().toString(36);
 	socket.join(socket.appName);
 
-	// when an app registers
-	socket.on('registerApp', function (appName) {
+
+
+	// when a client connects
+	socket.on('enter', function (appName) {
+        console.log(socket.id + ": enter " + appName);
+        // when app registers it leaves the random room and enters a new one
 		socket.leave(socket.appName);
     	socket.appName = appName;
     	socket.join(socket.appName);
+
 
         // check if app already exists
     	for ( var i = 0; i < apps.length; i++ ) {
@@ -83,14 +85,23 @@ io.on('connection', function (socket) {
     		}
     	}
 
+        // app does not exist, so add it to our list of apps
    		apps.push({name: appName});
+
+
+        // tell everyone about this client
+        socket.to(socket.appName).broadcast.emit('entered', {'client': socket.id});
 
   	});
 
  // when the client emits 'new message', this listens and executes
   socket.on('event', function (data) {
+      console.log(socket.appName + " -> " + socket.id + ": event " + data);
+     
     // we tell the client to execute 'new message'
     socket.to(socket.appName).broadcast.emit('event', data);
+
+    socket.broadcast.emit('event', data);
   });
 
 
@@ -139,6 +150,8 @@ io.on('connection', function (socket) {
 
   // when the user disconnects.. perform this
   socket.on('disconnect', function () {
+      //socket.to(socket.appName).broadcast.emit('disconnect');
+
     if (addedUser) {
       --numUsers;
 
