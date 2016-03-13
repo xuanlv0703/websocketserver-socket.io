@@ -1,5 +1,5 @@
 {
-  "name": "Websocket server",
+  "name": "Websocket-server",
   "version": "1.0.0",
   "description": "Web socket server for OpenShift based on node.js and socket.io",
   "keywords": [
