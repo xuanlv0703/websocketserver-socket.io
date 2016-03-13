@@ -32,10 +32,10 @@ var port = process.env.OPENSHIFT_NODEJS_PORT || 8000;
 var serverStat;
 
 server.listen( port, ipaddress, function() {
-    serverStat = new Date() + ' Server is listening on port ' + port;
+    serverStat = new Date() + ' Server is listening on ' + ipaddress + " : "+ port;
     console.log(serverStat);
 });
-
+console.log(server);
 
 // Routing
 app.use(express.static(__dirname + '/public'));
