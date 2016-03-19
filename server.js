@@ -89,6 +89,7 @@ io.on('connection', function (socket) {
         }
 
         var client = {"id" : socket.id, "clientDescription": clientDescription};
+        socket.myClient = client;
 
         // check if client already exists
         var exists = false;
@@ -141,6 +142,28 @@ io.on('connection', function (socket) {
          socket.appName = undefined;
          */
       });
+
+      // when the client emits 'new message', this listens and executes
+       socket.on('message', function (to, data) {
+
+           console.log(socket.id+" ("+socket.appName + "): [to: " + to + "data: " + data);
+
+           if (arguments.length < 2) return;
+
+        // broadcast
+           if ( to.toString() === '*' || to.toString().toLowerCase() === 'all') {
+                socket.to(socket.appName).broadcast.emit('message', socket.myClient, data);
+           } else {
+               if ( io.to(to) ) {
+                   io.to(to).emit('message', socket.myClient, data);
+               }
+           }
+
+         // we tell the client to execute 'new message'
+         //socket.to(socket.appName).broadcast.emit('event', {"id":socket.id, "data": data});
+
+       });
+
 
  // when the client emits 'new message', this listens and executes
   socket.on('event', function (data) {
