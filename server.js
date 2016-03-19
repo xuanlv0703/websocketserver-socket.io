@@ -67,6 +67,7 @@ io.on('connection', function (socket) {
 
 
 
+
 	// when a client connects
 	socket.on('enter', function (appName, clientDescription) {
         console.log(socket.id + ": enter " + appName + " clientDescription " + clientDescription);
@@ -120,8 +121,8 @@ io.on('connection', function (socket) {
      socket.on('leave', function (data) {
          console.log(socket.appName + " -> " + socket.id + ": leave " + data);
 
-
-         if ( apps[socket.appName]) {
+         removeSocketAndBroadcastExit(socket);
+         /*if ( apps[socket.appName]) {
              // get client
              var client;
              for ( var i = 0; i < apps[socket.appName].length; i++ ) {
@@ -138,6 +139,7 @@ io.on('connection', function (socket) {
 
          }
          socket.appName = undefined;
+         */
       });
 
  // when the client emits 'new message', this listens and executes
@@ -155,8 +157,8 @@ io.on('connection', function (socket) {
       console.log(socket.id + ": disconnected");
       //socket.to(socket.appName).broadcast.emit('disconnect');
 
-
-
+      removeSocketAndBroadcastExit(socket);
+/*
       if ( apps[socket.appName]) {
           // get client
           var client;
@@ -172,10 +174,24 @@ io.on('connection', function (socket) {
 
       }
       socket.appName = undefined;
-
-
-
-
-
+      */
   });
+
+  function removeSocketAndBroadcastExit(socket) {
+      if ( apps[socket.appName]) {
+          // get client
+          var client;
+          for ( var i = 0; i < apps[socket.appName].length; i++ ) {
+              if ( apps[socket.appName][i].id === socket.id ) {
+                  client = apps[socket.appName][i];
+                  apps[socket.appName].splice(i, 1);
+                  break;
+              }
+          }
+
+          socket.to(socket.appName).broadcast.emit('exited', client);
+
+      }
+      socket.appName = undefined;
+  }
 });
