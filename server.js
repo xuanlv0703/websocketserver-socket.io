@@ -70,7 +70,7 @@ io.on('connection', function (socket) {
 
 	// when a client connects
 	socket.on('enter', function (appName, clientDescription) {
-        console.log(socket.id + ": enter " + appName + " clientDescription " + clientDescription);
+        console.log(socket.id + ": enter " + appName + " description " + clientDescription);
 
         // if had alread entered, it cannot enter again without disconnecting first
 		if (socket.appName) {
@@ -88,7 +88,7 @@ io.on('connection', function (socket) {
 
         }
 
-        var client = {"id" : socket.id, "clientDescription": clientDescription};
+        var client = {"id" : socket.id, "description": clientDescription};
         socket.myClient = client;
 
         // check if client already exists
@@ -188,8 +188,8 @@ io.on('connection', function (socket) {
       //socket.to(socket.appName).broadcast.emit('disconnect');
 
       removeSocketAndBroadcastExit(socket);
-/*
-      if ( apps[socket.appName]) {
+
+     /* if ( apps[socket.appName]) {
           // get client
           var client;
           for ( var i = 0; i < apps[socket.appName].length; i++ ) {
@@ -208,7 +208,10 @@ io.on('connection', function (socket) {
   });
 
   function removeSocketAndBroadcastExit(socket) {
+      console.log("Broacasting exit");
       if ( apps[socket.appName]) {
+        console.log("Removing from app room");
+
           // get client
           var client;
           for ( var i = 0; i < apps[socket.appName].length; i++ ) {
@@ -218,10 +221,12 @@ io.on('connection', function (socket) {
                   break;
               }
           }
+          console.log("Client" + client);
 
           socket.to(socket.appName).broadcast.emit('exited', client);
 
       }
       socket.appName = undefined;
   }
+
 });
