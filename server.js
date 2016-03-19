@@ -151,6 +151,13 @@ io.on('connection', function (socket) {
 
   });
 
+  socket.on('p2p', function(to, data) {
+      console.log(socket.appName + " -> p2p [to: " +to + "]");
+      if ( io.to(to) ) {
+          io.to(to).emit('p2p', {'from': socket.id, 'data':data});
+      }
+  });
+
 
   // when the user disconnects.. perform this
   socket.on('disconnect', function () {
