@@ -5,7 +5,7 @@ var express = require('express');
 var app = express();
 
 // Add headers
-app.use(function (req, res, next) {
+app.use(function(req, res, next) {
 
     // Website you wish to allow to connect
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -31,8 +31,8 @@ var ipaddress = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
 var port = process.env.OPENSHIFT_NODEJS_PORT || 8000;
 var serverStat;
 
-server.listen( port, ipaddress, function() {
-    serverStat = new Date() + ' Server is listening on ' + ipaddress + " : "+ port;
+server.listen(port, ipaddress, function() {
+    serverStat = new Date() + ' Server is listening on ' + ipaddress + " : " + port;
     console.log(serverStat);
 });
 console.log(server);
@@ -44,60 +44,53 @@ app.use(express.static(__dirname + '/public'));
 // respond with "hello world" when a GET request is made to the homepage
 app.get('/_server', function(req, res) {
     console.log(serverStat);
-  	res.send(serverStat);
+    res.send(serverStat);
 });
 
 app.get('/_server/stats', function(req, res) {
     var stats = "Apps:" + JSON.stringify(apps);
     console.log(stats);
-  	res.send(stats);
+    res.send(stats);
 });
 
 //
 var apps = {};
 
 
-io.on('connection', function (socket) {
-    console.log("New connection from: " + socket.id);
+io.on('connection', function(socket) {
+    console.log(socket.id + ": connected.");
 
-    // apps join automatically a random room to prevent them from sending
-    // or receiving messages to / from other apps
-	//socket.appName = Math.random().toString(36);
-	//socket.join(socket.appName);
+    // when a client connects
+    socket.on('enter', function(appName, clientDescription) {
+        console.log(socket.id + ": enter " + appName + ",  description " + JSON.stringify(clientDescription));
 
-
-
-
-	// when a client connects
-	socket.on('enter', function (appName, clientDescription) {
-        console.log(socket.id + ": enter " + appName + " description " + clientDescription);
-
-        // if had alread entered, it cannot enter again without disconnecting first
-		if (socket.appName) {
-            console.log(socket.id + ": is already on " + socket.appName );
+        // if had alread entered in an app, it cannot enter again without disconnecting first
+        if (socket.appName) {
+            console.log(socket.id + ": is already on app room ´" + socket.appName + "´");
             return;
         }
-    	socket.appName = appName;
-    	socket.join(socket.appName);
+        socket.appName = appName;
+        socket.join(socket.appName);
 
         // add app if not created yet
         if (!apps[appName]) {
             // app does not exist, so add it to our list of apps
-   	        //apps.push({name: appName});
             apps[appName] = Array();
-
         }
 
-        var client = {"id" : socket.id, "description": clientDescription};
+        var client = {
+            "id": socket.id,
+            "description": clientDescription
+        };
         socket.myClient = client;
 
         // check if client already exists
         var exists = false;
-    	for ( var i = 0; i < apps[appName].length; i++ ) {
-    		if ( apps[appName][i].id === client.id ) {
-    			exists = true;
-    		}
-    	}
+        for (var i = 0; i < apps[appName].length; i++) {
+            if (apps[appName][i].id === client.id) {
+                exists = true;
+            }
+        }
 
         // if not add to client list of this app
         if (!exists) {
@@ -109,124 +102,65 @@ io.on('connection', function (socket) {
         socket.to(socket.appName).broadcast.emit('entered', client);
 
         // tell this client about everyone
-        for ( var i = 0; i < apps[appName].length; i++ ) {
-    		if ( apps[appName][i].id !== client.id ) {
-    			socket.emit('entered', apps[appName][i]);
-    		}
-    	}
+        for (var i = 0; i < apps[appName].length; i++) {
+            if (apps[appName][i].id !== client.id) {
+                socket.emit('entered', apps[appName][i]);
+            }
+        }
 
-  	});
-
-
-     // when the client emits 'leave', this listens and executes
-     socket.on('leave', function (data) {
-         console.log(socket.appName + " -> " + socket.id + ": leave " + data);
-
-         removeSocketAndBroadcastExit(socket);
-         /*if ( apps[socket.appName]) {
-             // get client
-             var client;
-             for ( var i = 0; i < apps[socket.appName].length; i++ ) {
-                 if ( apps[socket.appName][i].id === socket.id ) {
-                     client = apps[socket.appName][i];
-                     apps[socket.appName].splice(i, 1);
-                     break;
-                 }
-             }
+    });
 
 
-            // we tell the client to execute 'new message'
-             socket.to(socket.appName).broadcast.emit('exited', client);
+    // when the client emits 'leave'
+    socket.on('leave', function(data) {
+        console.log(socket.id + " (" + socket.appName + "): leave, data: " + JSON.stringify(data));
 
-         }
-         socket.appName = undefined;
-         */
-      });
+        removeSocketAndBroadcastExit(socket);
+    });
 
-      // when the client emits 'new message', this listens and executes
-       socket.on('message', function (to, data) {
-
-           console.log(socket.id+" ("+socket.appName + "): [to: " + to + "data: " + data);
-
-           if (arguments.length < 2) return;
-
-        // broadcast
-           if ( to.toString() === '*' || to.toString().toLowerCase() === 'all') {
-                socket.to(socket.appName).broadcast.emit('message', socket.myClient, data);
-           } else {
-               if ( io.to(to) ) {
-                   io.to(to).emit('message', socket.myClient, data);
-               }
-           }
-
-         // we tell the client to execute 'new message'
-         //socket.to(socket.appName).broadcast.emit('event', {"id":socket.id, "data": data});
-
-       });
+    // when the client emits 'new message', this listens and executes
+    socket.on('message', function(to, data) {
+        console.log(socket.id + " (" + socket.appName + "): message,  to:" + to + ", data: " + JSON.stringify(data));
 
 
- // when the client emits 'new message', this listens and executes
-  socket.on('event', function (data) {
-      console.log(socket.appName + " -> " + socket.id + ": event " + data);
-
-    // we tell the client to execute 'new message'
-    socket.to(socket.appName).broadcast.emit('event', {"id":socket.id, "data": data});
-
-  });
-
-  socket.on('p2p', function(to, data) {
-      console.log(socket.appName + " -> p2p [to: " +to + "]");
-      if ( io.to(to) ) {
-          io.to(to).emit('p2p', {'from': socket.id, 'data':data});
-      }
-  });
+        if (arguments.length < 2) return;
 
 
-  // when the user disconnects.. perform this
-  socket.on('disconnect', function () {
-      console.log(socket.id + ": disconnected");
-      //socket.to(socket.appName).broadcast.emit('disconnect');
+        if (to.toString() === '*' || to.toString().toLowerCase() === 'all') {
+            // broadcast
+            socket.to(socket.appName).broadcast.emit('message', socket.myClient, data);
+        } else {
+            //p2p
+            if (io.to(to)) {
+                io.to(to).emit('message', socket.myClient, data);
+            }
+        }
+    });
 
-      removeSocketAndBroadcastExit(socket);
 
-     /* if ( apps[socket.appName]) {
-          // get client
-          var client;
-          for ( var i = 0; i < apps[socket.appName].length; i++ ) {
-              if ( apps[socket.appName][i].id === socket.id ) {
-                  client = apps[socket.appName][i];
-                  apps[socket.appName].splice(i, 1);
-                  break;
-              }
-          }
-          // we tell the client to execute 'new message'
-          socket.to(socket.appName).broadcast.emit('exited', client);
+    // when the user disconnects.. perform this
+    socket.on('disconnect', function() {
+        console.log(socket.id + " (" + socket.appName + "): disconnected");
+        removeSocketAndBroadcastExit(socket);
+    });
 
-      }
-      socket.appName = undefined;
-      */
-  });
+    function removeSocketAndBroadcastExit(socket) {
+        console.log(socket.id + " (" + socket.appName + "): broadcasting exit.");
+        if (apps[socket.appName]) {
+            // get client
+            var client;
+            for (var i = 0; i < apps[socket.appName].length; i++) {
+                if (apps[socket.appName][i].id === socket.id) {
+                    client = apps[socket.appName][i];
+                    apps[socket.appName].splice(i, 1);
+                    break;
+                }
+            }
 
-  function removeSocketAndBroadcastExit(socket) {
-      console.log("Broacasting exit");
-      if ( apps[socket.appName]) {
-        console.log("Removing from app room");
+            socket.to(socket.appName).broadcast.emit('exited', client);
 
-          // get client
-          var client;
-          for ( var i = 0; i < apps[socket.appName].length; i++ ) {
-              if ( apps[socket.appName][i].id === socket.id ) {
-                  client = apps[socket.appName][i];
-                  apps[socket.appName].splice(i, 1);
-                  break;
-              }
-          }
-          console.log("Client" + client);
-
-          socket.to(socket.appName).broadcast.emit('exited', client);
-
-      }
-      socket.appName = undefined;
-  }
+        }
+        socket.appName = undefined;
+    }
 
 });
