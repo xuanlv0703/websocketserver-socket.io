@@ -156,6 +156,9 @@ io.on('connection', function(socket) {
                     break;
                 }
             }
+            if (!client) {
+                client = {id: socket.id};
+            }
 
             socket.to(socket.appName).broadcast.emit('exited', client);
 
