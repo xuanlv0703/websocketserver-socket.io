@@ -28,7 +28,7 @@ var server = require('http').createServer(app);
 var io = require('socket.io')(server);
 
 var ipaddress = process.env.OPENSHIFT_NODEJS_IP || "0.0.0.0";
-var port = process.env.OPENSHIFT_NODEJS_PORT || 8000;
+var port = process.env.OPENSHIFT_NODEJS_PORT || 8080;
 var serverStat;
 
 server.listen(port, ipaddress, function() {
